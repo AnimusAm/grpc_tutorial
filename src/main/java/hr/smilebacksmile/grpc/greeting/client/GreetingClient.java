@@ -9,47 +9,94 @@ import io.grpc.ManagedChannelBuilder;
 
 public class GreetingClient {
 
-    public static void main(String[] args) {
-        System.out.println("Hello gRPC from Client side");
+    private static boolean CALL_UNARY = true;
+    private static boolean CALL_SERVER_STREAMING = true;
+    private static boolean CALL_CLIENT_STREAMING = true;
 
-        final ManagedChannel managedChannel =
-                ManagedChannelBuilder.forAddress("localhost", 50051)
-                        .usePlaintext() // needed to invoke SSL usage
-                        .build();
+    ManagedChannel managedChannel;
 
-        System.out.println("Creating Stub");
-        /* generic Stub - w e don't actually want to use since we made our custom service which provides it's stub
-        final DummyServiceGrpc.DummyServiceBlockingStub synchronousClient =
-                DummyServiceGrpc.newBlockingStub(managedChannel);
-        */
-        // Created GreetService client - blocking, synchronous
-        final GreetServiceGrpc.GreetServiceBlockingStub synchronousGreetClient =
-                GreetServiceGrpc.newBlockingStub(managedChannel);
+    private void run() {
+        managedChannel = ManagedChannelBuilder.forAddress("localhost", 50051)
+                .usePlaintext() // needed to invoke SSL usage
+                .build();
 
-        // Call method on server using custom service <- RPC:
+        doUnaryCall(CALL_UNARY);
+        doCallForStreamingServer(CALL_SERVER_STREAMING);
+
+        System.out.println("Shutting down the client");
+        managedChannel.shutdown();
+    }
+
+    private void doUnaryCall(final boolean doCall) {
+
+        if (doCall) {
+            // Created GreetService client - blocking, synchronous
+            final GreetServiceGrpc.GreetServiceBlockingStub synchronousGreetClient =
+                    GreetServiceGrpc.newBlockingStub(managedChannel);
+
+            System.out.println("Preparing UNARY call on CLIENT side");
+            // Call method on server using custom service <- RPC:
+            unaryCall(synchronousGreetClient);
+
+        }
+    }
+
+    private void doCallForStreamingServer(final boolean doCall) {
+
+        if (doCall) {
+            // Created GreetService client - blocking, synchronous
+            final GreetServiceGrpc.GreetServiceBlockingStub synchronousGreetClient =
+                    GreetServiceGrpc.newBlockingStub(managedChannel);
+
+            System.out.println("Preparing SERVER STREAMING call on CLIENT side");
+            // Call method on server using custom service <- RPC:
+            serverStreamingCall(synchronousGreetClient);
+
+        }
+    }
+
+    private void unaryCall(final GreetServiceGrpc.GreetServiceBlockingStub unaryClient) {
 
         // Make the Greeting
         final Greeting greeting = Greeting.newBuilder()
-                .setFirstName("MyName")
+                .setFirstName("SomeName for UnaryService")
                 .build();
 
         // Make the Request containing the Greeting
         final GreetRequest request = GreetRequest.newBuilder().setGreeting(greeting).build();
+        System.out.println("UNARY request prepared on CLIENT side: " + request);
 
         // RPC to server to get the Response - Unary
-        final GreetResponse response = synchronousGreetClient.greet(request);
-        System.out.println(response.getResult());
+        final GreetResponse response = unaryClient.greet(request);
+        System.out.println("UNARY response received from SERVER side: " + response.getResult());
+
+    }
+
+    private void serverStreamingCall(final GreetServiceGrpc.GreetServiceBlockingStub unaryClient) {
+
+        // Make the Greeting
+        final Greeting greeting = Greeting.newBuilder()
+                .setFirstName("SomeName for UnaryService")
+                .build();
+
+        // Make the Request containing the Greeting
+        final GreetRequest request = GreetRequest.newBuilder().setGreeting(greeting).build();
+        System.out.println("UNARY request prepared on CLIENT side: " + request);
 
         // RPC to server to get the Response - StreamingServer
-        synchronousGreetClient.greetManyTimes(request).forEachRemaining(
+        unaryClient.greetManyTimes(request).forEachRemaining(
                 greetManyTimeResponse -> {
-                    System.out.println("Received streaming result: " + greetManyTimeResponse.getResult());
+                    System.out.println("STREAMING response received from SERVER side: " + greetManyTimeResponse.getResult());
                 }
         );
 
+    }
 
+    public static void main(String[] args) {
+        System.out.println("Hello gRPC from Client side");
 
-        System.out.println("Shutting down the client");
-        managedChannel.shutdown();
+        final GreetingClient client = new GreetingClient();
+        client.run();
+
     }
 }

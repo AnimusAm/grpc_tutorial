@@ -9,8 +9,8 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
 
     @Override
     public void greet(GreetRequest request, StreamObserver<GreetResponse> responseObserver) {
-        // super.greet(request, responseObserver);
 
+        System.out.println("UNARY request received on SERVER side: " + request);
 
         // Extract from request
         String result = "Hello " +
@@ -20,6 +20,7 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
 
         // Form the response
         final GreetResponse response = GreetResponse.newBuilder().setResult(result).build();
+        System.out.println("Preparing UNARY response on SERVER side " + response);
 
         // Send response
         responseObserver.onNext(response);
@@ -30,15 +31,22 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
 
     @Override
     public void greetManyTimes(GreetRequest request, StreamObserver<GreetManyTimeResponse> responseObserver) {
-        final String name =  Optional.ofNullable( request.getGreeting())
+
+        System.out.println("UNARY request received on SERVER side: " + request);
+
+        final String name =  Optional.ofNullable(request.getGreeting())
                 .map(Greeting::getFirstName)
                 .orElse("No NAME");
 
+        System.out.println("Preparing STREAMING response on SERVER side:");
         try {
             for (int i = 0; i < 5; i++) {
                 String result = "Hello " + name + " greeting you " + (i + 1) + ". time.";
+
+
                 // Form the response
                 final GreetManyTimeResponse response = GreetManyTimeResponse.newBuilder().setResult(result).build();
+                System.out.println("[" + (i+1) + "] chunk of STREAMING response on SERVER side: " + response);
 
                 // Send response
                 responseObserver.onNext(response);
@@ -49,7 +57,42 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
             e.printStackTrace();
         } finally {
             // Finalize RPC call
+            System.out.println("Ending STREAMING transmission on SERVER side:");
             responseObserver.onCompleted();
         }
+    }
+
+    @Override
+    public StreamObserver<GreetRequest> longGreet(StreamObserver<GreetResponse> responseObserver) {
+        final StreamObserver<GreetRequest> requestStreamObserver = new StreamObserver<GreetRequest>() {
+
+            final StringBuilder sb = new StringBuilder();
+
+
+            @Override
+            public void onNext(GreetRequest value) {
+                // when client sends each of it's requests, we will process each one of them on server side (by putting all received requests into one long message)
+                if (sb.length() > 0) {
+                    sb.append("\n");
+                }
+                sb.append("Hello server from :").append(value.getGreeting().getFirstName());
+
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                // what happens when client request results in error
+            }
+
+            @Override
+            public void onCompleted() {
+                // when Client is done, Server will send response
+                //  -> here we do what we need when Client is done transmitting - and we communicate with Client using response observer
+                responseObserver.onNext(GreetResponse.newBuilder().setResult(sb.toString()).build());
+                responseObserver.onCompleted();
+            }
+        };
+
+        return requestStreamObserver;
     }
 }
