@@ -1,6 +1,5 @@
 package hr.smilebacksmile.grpc.calculator.primes_decomposition;
 
-import com.google.common.primitives.UnsignedInteger;
 import hr.smilebacksmile.fsm.state.StateType;
 
 import java.util.Optional;

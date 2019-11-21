@@ -17,10 +17,9 @@ public class StateMachine<T extends State> {
         return this.currentState;
     }
 
-    public <V> T doTransitionAndThen(final Function<T, T> action, Function<? super T, ? extends V> after) {
+    public <V> V doTransitionAndThen(final Function<T, T> action, Function<T, V> after) {
         currentState = action.apply(currentState);
-        action.andThen(after);
-        return this.currentState;
+        return action.andThen(after).apply(currentState);
     }
 
     public boolean isFinal() {
