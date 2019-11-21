@@ -1,0 +1,43 @@
+plugins {
+    id 'java'
+    id 'com.google.protobuf' version '0.8.10'
+    id 'idea'
+}
+
+group 'hr.smilebacksmile.grpc'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.grpc:grpc-netty-shaded:1.25.0'
+    implementation 'io.grpc:grpc-protobuf:1.25.0'
+    implementation 'io.grpc:grpc-stub:1.25.0'
+    implementation "io.grpc:grpc-services:1.25.0"   // reflection
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: 'org.hamcrest', name: 'hamcrest-all', version: '1.3'
+
+    compile project(':fsm')
+    testCompile project(':fsm')
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.10.0"
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.25.0'
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}

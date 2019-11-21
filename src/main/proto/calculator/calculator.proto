@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package calculator;
+
+option java_package = "hr.smilebacksmile.calculator";
+option java_multiple_files = true;
+
+message Operands {
+    repeated int32 operands = 1;
+}
+
+message LargeWholeNumber {
+    uint64 number = 1;
+}
+
+message SumRequest {
+    Operands operands = 1;
+}
+
+message SumResponse {
+    int64 result = 1;
+}
+
+message PrimeFactorsRequest {
+    LargeWholeNumber number = 1;
+}
+
+message PrimeFactorsResponse {
+    LargeWholeNumber factor = 1;
+}
+
+service CalculatorService {
+    // Unary service
+    rpc Sum(SumRequest) returns(SumResponse) {};
+
+    // Server streaming service
+    rpc CalculatePrimeFactors(PrimeFactorsRequest) returns(stream PrimeFactorsResponse) {};
+}

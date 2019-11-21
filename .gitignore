@@ -1,0 +1,12 @@
+# ignore objects and archives, anywhere in the tree.
+*.[oa]
+
+# ignore target directory
+target/*
+
+# ignore build directory
+build/*
+
+# ignore all idea specific libraries
+.idea/*
+
