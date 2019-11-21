@@ -68,14 +68,15 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
 
             final StringBuilder sb = new StringBuilder();
 
-
             @Override
             public void onNext(GreetRequest value) {
                 // when client sends each of it's requests, we will process each one of them on server side (by putting all received requests into one long message)
                 if (sb.length() > 0) {
-                    sb.append("\n");
+                    sb.append("\\n");
                 }
                 sb.append("Hello server from :").append(value.getGreeting().getFirstName());
+
+                System.out.println("STREAMING REQUEST received from CLIENT side: " + value + "{inside onNext of RequestObserver - the one that Client calls for each request}" );
 
             }
 
@@ -88,7 +89,11 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
             public void onCompleted() {
                 // when Client is done, Server will send response
                 //  -> here we do what we need when Client is done transmitting - and we communicate with Client using response observer
-                responseObserver.onNext(GreetResponse.newBuilder().setResult(sb.toString()).build());
+                System.out.println("STREAMING REQUEST received from CLIENT side {inside onCompleted of RequestObserver - the one that Client calls when it's done transmitting}" );
+
+                final String response = sb.toString();
+                System.out.println("Prepared UNARY response on SERVER side: " + response);
+                responseObserver.onNext(GreetResponse.newBuilder().setResult(response).build());
                 responseObserver.onCompleted();
             }
         };
