@@ -1,9 +1,8 @@
-package hr.smilebacksmile.grpc.calculator.util;
+package hr.smilebacksmile.grpc.calculator.fsm;
 
 import hr.smilebacksmile.grpc.calculator.primes_decomposition.DecomposerGramatics;
 import hr.smilebacksmile.grpc.calculator.primes_decomposition.DecomposerMachine;
 import hr.smilebacksmile.grpc.calculator.primes_decomposition.DecomposerState;
-import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

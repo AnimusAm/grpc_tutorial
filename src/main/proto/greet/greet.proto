@@ -28,4 +28,8 @@ service GreetService {
 
     // Server streaming service
     rpc GreetManyTimes(GreetRequest) returns(stream GreetManyTimeResponse) {};
+
+    // Client streaming service
+    //   There is no actual need to define specific request and response messages for this purpouse
+    rpc LongGreet(stream GreetRequest) returns(GreetResponse) {};
 }
