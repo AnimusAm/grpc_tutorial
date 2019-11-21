@@ -29,10 +29,21 @@ message PrimeFactorsResponse {
     LargeWholeNumber factor = 1;
 }
 
+message AverageRequest {
+    int32 number = 1;
+}
+
+message AverageResponse {
+    double average = 1;
+}
+
 service CalculatorService {
     // Unary service
     rpc Sum(SumRequest) returns(SumResponse) {};
 
     // Server streaming service
     rpc CalculatePrimeFactors(PrimeFactorsRequest) returns(stream PrimeFactorsResponse) {};
+
+    // Client streaming service
+    rpc CalculateAverage(stream AverageRequest) returns(stream AverageResponse) {};
 }

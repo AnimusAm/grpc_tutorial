@@ -64,7 +64,7 @@ public class GreetingClient {
             final GreetServiceGrpc.GreetServiceStub asynchronousGreetClient =
                     GreetServiceGrpc.newStub(managedChannel);
 
-            System.out.println("Preparing UNARY SERVER call on STREAMING CLIENT side");
+            System.out.println("Preparing STREAMING call on STREAMING CLIENT side");
             // Call method on server using custom service <- RPC:
             clientStreamingCall(asynchronousGreetClient);
         }

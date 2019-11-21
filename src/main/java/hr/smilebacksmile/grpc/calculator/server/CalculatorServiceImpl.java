@@ -2,6 +2,7 @@ package hr.smilebacksmile.grpc.calculator.server;
 
 import hr.smilebacksmile.calculator.*;
 import hr.smilebacksmile.fsm.state.impl.MachineState;
+import hr.smilebacksmile.grpc.calculator.util.AverageCalculator;
 import hr.smilebacksmile.grpc.calculator.util.PrimeNumberIncrementalDecomposer;
 import io.grpc.stub.StreamObserver;
 
@@ -71,5 +72,42 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
             // Finalize RPC call
             responseObserver.onCompleted();
         }
+    }
+
+    @Override
+    public StreamObserver<AverageRequest> calculateAverage(StreamObserver<AverageResponse> responseObserver) {
+
+        final StreamObserver<AverageRequest> requestStreamObserver = new StreamObserver<AverageRequest>() {
+
+            final AverageCalculator calculator = new AverageCalculator();
+
+            @Override
+            public void onNext(AverageRequest value) {
+                // when client sends each of it's request, process it (add into calculator)
+                calculator.progress(value.getNumber());
+
+                System.out.println("STREAMING REQUEST received from CLIENT side: " + value);
+
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                // what happens when client request results in error
+            }
+
+            @Override
+            public void onCompleted() {
+                // when Client is done, Server will send response
+                //  -> here we do what we need when Client is done transmitting - and we communicate with Client using response observer
+                System.out.println("STREAMING REQUEST received from CLIENT side - requesting average and end of transmission" );
+
+                final Double average = calculator.avg();
+                System.out.println("Prepared UNARY response on SERVER side: " + average);
+                responseObserver.onNext(AverageResponse.newBuilder().setAverage(average).build());
+                responseObserver.onCompleted();
+            }
+        };
+
+        return requestStreamObserver;
     }
 }
