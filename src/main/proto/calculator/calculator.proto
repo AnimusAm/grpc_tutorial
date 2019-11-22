@@ -45,5 +45,5 @@ service CalculatorService {
     rpc CalculatePrimeFactors(PrimeFactorsRequest) returns(stream PrimeFactorsResponse) {};
 
     // Client streaming service
-    rpc CalculateAverage(stream AverageRequest) returns(stream AverageResponse) {};
+    rpc CalculateAverage(stream AverageRequest) returns(AverageResponse) {};
 }

@@ -100,4 +100,36 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
 
         return requestStreamObserver;
     }
+
+    @Override
+    public StreamObserver<GreetRequest> pingPongGreet(StreamObserver<GreetResponse> responseObserver) {
+        final StreamObserver<GreetRequest> requestStreamObserver = new StreamObserver<GreetRequest>() {
+
+            @Override
+            public void onNext(GreetRequest value) {
+
+                System.out.println("STREAMING REQUEST received from CLIENT side: " + value);
+
+                final GreetResponse response = GreetResponse.newBuilder().setResult("SERVER says - Hello: " + value.getGreeting().getFirstName()).build();
+
+                System.out.println("STREAMING RESPONSE sent on SERVER side: " + response);
+                responseObserver.onNext(response);
+
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                // don't react to the error
+            }
+
+            @Override
+            public void onCompleted() {
+                System.out.println("END TRANSMISSION received from CLIENT side");
+                System.out.println("ENDING TRANSMISSION on SERVER side");
+                responseObserver.onCompleted();
+            }
+        };
+
+        return requestStreamObserver;
+    }
 }

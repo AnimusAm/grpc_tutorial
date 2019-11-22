@@ -32,4 +32,8 @@ service GreetService {
     // Client streaming service
     //   There is no actual need to define specific request and response messages for this purpouse
     rpc LongGreet(stream GreetRequest) returns(GreetResponse) {};
+
+    // Client and server streaming service
+    //   There is no actual need to define specific request and response messages for this purpouse
+    rpc PingPongGreet(stream GreetRequest) returns(stream GreetResponse) {};
 }

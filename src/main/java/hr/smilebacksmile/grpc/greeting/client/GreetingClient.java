@@ -5,6 +5,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -12,7 +13,8 @@ public class GreetingClient {
 
     private static boolean CALL_UNARY = false;
     private static boolean CALL_SERVER_STREAMING = false;
-    private static boolean CALL_CLIENT_STREAMING = true;
+    private static boolean CALL_CLIENT_STREAMING = false;
+    private static boolean CALL_BI_DIR = true;
 
     ManagedChannel managedChannel;
 
@@ -24,6 +26,7 @@ public class GreetingClient {
         doUnaryCall(CALL_UNARY);
         doCallForStreamingServer(CALL_SERVER_STREAMING);
         doCallForStreamingClient(CALL_CLIENT_STREAMING);
+        doCallForBiDir(CALL_BI_DIR);
 
         System.out.println("Shutting down the client");
         managedChannel.shutdown();
@@ -67,6 +70,19 @@ public class GreetingClient {
             System.out.println("Preparing STREAMING call on STREAMING CLIENT side");
             // Call method on server using custom service <- RPC:
             clientStreamingCall(asynchronousGreetClient);
+        }
+    }
+
+    private void doCallForBiDir(final boolean doCall) {
+
+        if (doCall) {
+            // Created GreetService client - streaming, asynchronous
+            final GreetServiceGrpc.GreetServiceStub asynchronousGreetClient =
+                    GreetServiceGrpc.newStub(managedChannel);
+
+            System.out.println("Preparing STREAMING call on BIDIR CLIENT side");
+            // Call method on server using custom service <- RPC:
+            biDirectionalCall(asynchronousGreetClient);
         }
     }
 
@@ -153,6 +169,67 @@ public class GreetingClient {
             System.out.println("STREAMING request prepared on CLIENT side: " + greetRequest + "{calling onNext of RequestObserver - the one that Server will process in RequestObserver defined inside him}");
             requestStreamObserver.onNext(greetRequest);
         }
+
+        // We notify Server that client is done with sending data
+        requestStreamObserver.onCompleted();
+
+        try {
+            latch.await(3L, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private void biDirectionalCall(final GreetServiceGrpc.GreetServiceStub streamingClient) {
+
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        final StreamObserver<GreetRequest> requestStreamObserver =
+                streamingClient.pingPongGreet(new StreamObserver<GreetResponse>() {
+
+                    @Override
+                    public void onNext(GreetResponse value) {
+                        System.out.println("STREAMING response received from SERVER side: " + value);
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        // don't react to errors reported from server side
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        System.out.println("STREAMING transmission from SERVER side ended");
+                        latch.countDown();
+                    }
+                });
+
+
+        final GreetRequestOrBuilder greetRequestOrBuilder = GreetRequest.newBuilder();
+        final GreetingOrBuilder greetingOrBuilder = Greeting.newBuilder();
+
+        new Random().ints(5, 4, 15).forEach(i ->
+                {
+                    final Greeting greeting = ((Greeting.Builder) greetingOrBuilder).setFirstName("whatsoever" + i).build();
+                    final GreetRequest request = ((GreetRequest.Builder) greetRequestOrBuilder).setGreeting(greeting).build();
+
+                    System.out.println("STREAMING request prepared on CLIENT side: " + request);
+                    requestStreamObserver.onNext(request);
+
+                    /*
+                        TO notice that streaming asynchronous uncomment sleeping thread statement.
+                        It is supposed to be noticed for large number of requests sent (but I tried 140 and it still appeared as client is streaming all first, and then server streams)
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    */
+
+                }
+        );
 
         // We notify Server that client is done with sending data
         requestStreamObserver.onCompleted();
