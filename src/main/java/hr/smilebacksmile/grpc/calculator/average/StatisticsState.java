@@ -3,21 +3,21 @@ package hr.smilebacksmile.grpc.calculator.average;
 import hr.smilebacksmile.fsm.state.StateType;
 import hr.smilebacksmile.fsm.state.impl.MachineState;
 
-public class StateForAverage extends MachineState {
+public class StatisticsState<T> extends MachineState {
 
-    protected final Integer number;
+    protected final T number;
 
-    public StateForAverage(final StateType type, final Integer number) {
+    public StatisticsState(final StateType type, final T number) {
         super(type);
         this.number = number;
     }
 
-    public StateForAverage() {
+    public StatisticsState() {
         super(StateType.INITIAL);
         this.number = null;
     }
 
-    public Integer getNumber() {
+    public T getNumber() {
         return number;
     }
 }

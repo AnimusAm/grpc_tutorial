@@ -29,7 +29,7 @@ message PrimeFactorsResponse {
     LargeWholeNumber factor = 1;
 }
 
-message AverageRequest {
+message IntStatisticsRequest {
     int32 number = 1;
 }
 
@@ -37,13 +37,20 @@ message AverageResponse {
     double average = 1;
 }
 
+message GlobalMaxResponse {
+    int32 max = 1;
+}
+
 service CalculatorService {
     // Unary service
-    rpc Sum(SumRequest) returns(SumResponse) {};
+    rpc Sum(SumRequest) returns (SumResponse) {};
 
     // Server streaming service
-    rpc CalculatePrimeFactors(PrimeFactorsRequest) returns(stream PrimeFactorsResponse) {};
+    rpc CalculatePrimeFactors(PrimeFactorsRequest) returns (stream PrimeFactorsResponse) {};
 
     // Client streaming service
-    rpc CalculateAverage(stream AverageRequest) returns(AverageResponse) {};
+    rpc CalculateAverage(stream IntStatisticsRequest) returns (AverageResponse) {};
+
+    // BiDirectional streaming service
+    rpc GlobalMaximum(stream IntStatisticsRequest) returns (stream GlobalMaxResponse) {};
 }

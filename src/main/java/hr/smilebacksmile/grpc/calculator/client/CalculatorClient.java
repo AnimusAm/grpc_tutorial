@@ -6,6 +6,7 @@ import hr.smilebacksmile.greet.GreetRequest;
 import hr.smilebacksmile.greet.GreetRequestOrBuilder;
 import hr.smilebacksmile.greet.GreetResponse;
 import hr.smilebacksmile.greet.Greeting;
+import hr.smilebacksmile.grpc.calculator.util.DelayedCall;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -15,8 +16,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 public class CalculatorClient {
 
@@ -79,7 +82,7 @@ public class CalculatorClient {
         final CountDownLatch latch = new CountDownLatch(1);
 
         // First define what happens when response is received -> Response Observer is something SERVER will invoke
-        final StreamObserver<AverageRequest> requestStreamObserver =
+        final StreamObserver<IntStatisticsRequest> requestStreamObserver =
                 streamingClient.calculateAverage(new StreamObserver<AverageResponse>() {
 
                     @Override
@@ -104,7 +107,7 @@ public class CalculatorClient {
                 });
 
         // Generate numbers that will be used in requests - whose average we are looking for
-        final AverageRequestOrBuilder averageRequestOrBuilder = AverageRequest.newBuilder();
+        final IntStatisticsRequestOrBuilder averageRequestOrBuilder = IntStatisticsRequest.newBuilder();
 
         final Random random = new Random();
         int minLimit = 38;
@@ -115,11 +118,74 @@ public class CalculatorClient {
 
         random.ints(numberOfRandoms, minLimit, upperLimit).forEach( i ->
                 {
-                    final AverageRequest request = ((AverageRequest.Builder) averageRequestOrBuilder).setNumber(i).build();
+                    final IntStatisticsRequest request = ((IntStatisticsRequest.Builder) averageRequestOrBuilder).setNumber(i).build();
 
                     System.out.println("STREAMING request prepared on CLIENT side: " + request);
                     requestStreamObserver.onNext(request);
                 }
+        );
+
+        // We notify Server that client is done with sending data
+        requestStreamObserver.onCompleted();
+
+        try {
+            latch.await(3L, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private static void doGlobalMaxCall(final CalculatorServiceGrpc.CalculatorServiceStub streamingClient) {
+
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        // First define what happens when response is received -> Response Observer is something SERVER will invoke
+        final StreamObserver<IntStatisticsRequest> requestStreamObserver =
+                streamingClient.globalMaximum(new StreamObserver<GlobalMaxResponse>() {
+
+                    @Override
+                    public void onNext(GlobalMaxResponse value) {
+                        System.out.println("STREAMING response received from SERVER side: " + value);
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        // don't react to errors reported from server side
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        System.out.println("STREAMING transmission from SERVER side ended");
+                        latch.countDown();
+                    }
+                });
+
+        final IntStatisticsRequestOrBuilder intStatisticsRequestOrBuilder = IntStatisticsRequest.newBuilder();
+
+        // altogether, 5 times requests will be generated
+        IntStream.rangeClosed(1, 5).forEach( i -> {
+                final Random random = new Random();
+
+                // how many times request will be generated in this attempt
+                final Integer repeateance = random.ints(1, 1, 3).findFirst().orElse(1);
+
+                random.ints(repeateance, 1, 12).forEach(
+                        randomNumber -> {
+                            final Integer delay = random.ints(1, 100, 1000).findFirst().orElse(1000);
+
+                            final IntStatisticsRequest request = ((IntStatisticsRequest.Builder) intStatisticsRequestOrBuilder).setNumber(randomNumber).build();
+
+                            System.out.println("STREAMING request prepared on CLIENT side: " + request + " with delay: " + delay);
+                            try {
+                                requestStreamObserver.onNext(DelayedCall.doWithDelay(delay, () -> request ).get());
+                            } catch (InterruptedException | ExecutionException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                );
+            }
         );
 
         // We notify Server that client is done with sending data
@@ -166,6 +232,17 @@ public class CalculatorClient {
         doAverageCall(asynchronousCalculatorClient);
     }
 
+    private static void requestGlobalMax(final ManagedChannel managedChannel) {
+
+        // Create Sum client Stub - blocking, synchronous
+        final CalculatorServiceGrpc.CalculatorServiceStub asynchronousCalculatorClient =
+                CalculatorServiceGrpc.newStub(managedChannel);
+
+        System.out.println("Preparing STREAMING call on STREAMING CLIENT side");
+        // Call method on server using custom service <- RPC:
+        doGlobalMaxCall(asynchronousCalculatorClient);
+    }
+
 
     public static void main(String[] args) {
         System.out.println("Calculator client side says hello");
@@ -174,7 +251,8 @@ public class CalculatorClient {
 
         // client.run(CalculatorClient::requestSumOfNumbers);
         // client.run(CalculatorClient::requestPrimeNumbersDecomposition);
-        client.run(CalculatorClient::requestAverage);
+        // client.run(CalculatorClient::requestAverage);
+        client.run(CalculatorClient::requestGlobalMax);
 
     }
 }

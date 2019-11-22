@@ -2,7 +2,8 @@ package hr.smilebacksmile.grpc.calculator.server;
 
 import hr.smilebacksmile.calculator.*;
 import hr.smilebacksmile.fsm.state.impl.MachineState;
-import hr.smilebacksmile.grpc.calculator.util.AverageCalculator;
+import hr.smilebacksmile.greet.GreetResponse;
+import hr.smilebacksmile.grpc.calculator.util.IntegerStatisticsCalculator;
 import hr.smilebacksmile.grpc.calculator.util.PrimeNumberIncrementalDecomposer;
 import io.grpc.stub.StreamObserver;
 
@@ -75,14 +76,14 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
     }
 
     @Override
-    public StreamObserver<AverageRequest> calculateAverage(StreamObserver<AverageResponse> responseObserver) {
+    public StreamObserver<IntStatisticsRequest> calculateAverage(StreamObserver<AverageResponse> responseObserver) {
 
-        final StreamObserver<AverageRequest> requestStreamObserver = new StreamObserver<AverageRequest>() {
+        final StreamObserver<IntStatisticsRequest> requestStreamObserver = new StreamObserver<IntStatisticsRequest>() {
 
-            final AverageCalculator calculator = new AverageCalculator();
+            final IntegerStatisticsCalculator calculator = new IntegerStatisticsCalculator();
 
             @Override
-            public void onNext(AverageRequest value) {
+            public void onNext(IntStatisticsRequest value) {
                 // when client sends each of it's request, process it (add into calculator)
                 calculator.progress(value.getNumber());
 
@@ -104,6 +105,60 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
                 final Double average = calculator.avg();
                 System.out.println("Prepared UNARY response on SERVER side: " + average);
                 responseObserver.onNext(AverageResponse.newBuilder().setAverage(average).build());
+                responseObserver.onCompleted();
+            }
+        };
+
+        return requestStreamObserver;
+    }
+
+    @Override
+    public StreamObserver<IntStatisticsRequest> globalMaximum(StreamObserver<GlobalMaxResponse> responseObserver) {
+
+        final StreamObserver<IntStatisticsRequest> requestStreamObserver = new StreamObserver<IntStatisticsRequest>() {
+
+            final IntegerStatisticsCalculator calculator = new IntegerStatisticsCalculator();
+            Integer globalMaximum = calculator.currentMaximum();
+
+            @Override
+            public void onNext(IntStatisticsRequest value) {
+                // Server will respond only if global maximum changed
+
+                System.out.println("STREAMING REQUEST received from CLIENT side: " + value);
+
+                calculator.progress(value.getNumber());
+                final Integer currentMaximum = calculator.currentMaximum();
+                if (calculator.currentMaximum() > globalMaximum) {
+                    globalMaximum = currentMaximum;
+
+                    final GlobalMaxResponse response = GlobalMaxResponse.newBuilder().setMax(currentMaximum).build();
+
+                    System.out.println("STREAMING RESPONSE sent from SERVER side: " + response);
+                    responseObserver.onNext(response);
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                // reset the calculator
+                calculator.reset();
+            }
+
+            @Override
+            public void onCompleted() {
+                System.out.println("END TRANSMISSION received from CLIENT side");
+
+                // send one last maximum before terminating if maximum changed in the mean time
+                final Integer currentMaximum = calculator.currentMaximum();
+                if (calculator.currentMaximum() > globalMaximum) {
+
+                    final GlobalMaxResponse response = GlobalMaxResponse.newBuilder().setMax(currentMaximum).build();
+                    System.out.println("STREAMING RESPONSE sent from SERVER side: " + response);
+                }
+
+                System.out.println("ENDING TRANSMISSION on SERVER side");
+                // we want every client session to start from beginning (not to remember maximum previous call)
+                calculator.reset();
                 responseObserver.onCompleted();
             }
         };
