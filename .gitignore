@@ -6,6 +6,7 @@ target/*
 
 # ignore build directory
 build/
+.gradle
 
 # ignore all idea specific libraries
 .idea/*
