@@ -29,7 +29,7 @@ message PrimeFactorsResponse {
     LargeWholeNumber factor = 1;
 }
 
-message IntStatisticsRequest {
+message WholeNumberRequest {
     int32 number = 1;
 }
 
@@ -41,16 +41,23 @@ message GlobalMaxResponse {
     int32 max = 1;
 }
 
+message SquareRootResponse {
+    double root = 1;
+}
+
 service CalculatorService {
     // Unary service
-    rpc Sum(SumRequest) returns (SumResponse) {};
+    rpc Sum (SumRequest) returns (SumResponse) {};
 
     // Server streaming service
-    rpc CalculatePrimeFactors(PrimeFactorsRequest) returns (stream PrimeFactorsResponse) {};
+    rpc CalculatePrimeFactors (PrimeFactorsRequest) returns (stream PrimeFactorsResponse) {};
 
     // Client streaming service
-    rpc CalculateAverage(stream IntStatisticsRequest) returns (AverageResponse) {};
+    rpc CalculateAverage (stream WholeNumberRequest) returns (AverageResponse) {};
 
     // BiDirectional streaming service
-    rpc GlobalMaximum(stream IntStatisticsRequest) returns (stream GlobalMaxResponse) {};
+    rpc GlobalMaximum (stream WholeNumberRequest) returns (stream GlobalMaxResponse) {};
+
+    // Unary service with error handling: throws exception if negative number was received
+    rpc SquareRoot (WholeNumberRequest) returns (SquareRootResponse) {};
 }

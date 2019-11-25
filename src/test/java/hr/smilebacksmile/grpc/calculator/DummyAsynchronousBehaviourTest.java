@@ -1,12 +1,15 @@
 package hr.smilebacksmile.grpc.calculator;
 
 import hr.smilebacksmile.grpc.calculator.util.DelayedCall;
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Random;
 import java.util.concurrent.*;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class DummyAsynchronousBehaviourTest {
 
@@ -62,9 +65,14 @@ public class DummyAsynchronousBehaviourTest {
     public void delayedExecutionCallTestWithRelevantDelay() {
 
         LOGGER.info("Calling 1. with delay 10000");
-        ScheduledFuture<Integer> firstDelayed = DelayedCall.doWithDelay(10000, () -> 1);
+        ScheduledFuture<Integer> firstDelayed = DelayedCall.doWithDelay(1000, () -> 1);
+        // This calls appear to be synchronous, and it seems that's because of using single thread pool in ScheduledExecutor
+        // But if we take a look into next Test: delayedExecutionCallTestWithRelevantDelayAsync we can see that tasks are executed in parallel
+        //  - it just depends on how we made invocations of the tasks
+        //
         LOGGER.info("Calling 2. with delay 100");
         ScheduledFuture<Integer> secondDelayed = DelayedCall.doWithDelay(100, () -> 2);
+        DelayedCall.shutdown(); // will be shut down after all given tasks have been executed, but will not receive new tasks
 
         try {
             LOGGER.info("Received 1. with result {}", firstDelayed.get());
@@ -77,6 +85,12 @@ public class DummyAsynchronousBehaviourTest {
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
+
+        LOGGER.info("Attempt to invoke another task");
+        assertThrows(RejectedExecutionException.class, () -> {
+            DelayedCall.doWithDelay(100, () -> 3);
+        });
+
     }
 
     @Test
