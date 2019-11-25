@@ -5,7 +5,7 @@
 target/*
 
 # ignore build directory
-build/*
+build/
 
 # ignore all idea specific libraries
 .idea/*
