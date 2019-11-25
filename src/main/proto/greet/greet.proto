@@ -36,4 +36,7 @@ service GreetService {
     // Client and server streaming service
     //   There is no actual need to define specific request and response messages for this purpouse
     rpc PingPongGreet(stream GreetRequest) returns(stream GreetResponse) {};
+
+    // Unary service that demonstrates usage of deadlines
+    rpc GreetWithDeadline(GreetRequest) returns(GreetResponse) {};
 }

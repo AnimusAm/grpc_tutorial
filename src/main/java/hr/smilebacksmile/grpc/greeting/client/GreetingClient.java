@@ -1,20 +1,21 @@
 package hr.smilebacksmile.grpc.greeting.client;
 
 import hr.smilebacksmile.greet.*;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public class GreetingClient {
 
     private static boolean CALL_UNARY = false;
     private static boolean CALL_SERVER_STREAMING = false;
     private static boolean CALL_CLIENT_STREAMING = false;
-    private static boolean CALL_BI_DIR = true;
+    private static boolean CALL_BI_DIR = false;
+    private static boolean CALL_DEADLINE = true;
 
     ManagedChannel managedChannel;
 
@@ -23,16 +24,19 @@ public class GreetingClient {
                 .usePlaintext() // needed to invoke SSL usage
                 .build();
 
-        doUnaryCall(CALL_UNARY);
-        doCallForStreamingServer(CALL_SERVER_STREAMING);
-        doCallForStreamingClient(CALL_CLIENT_STREAMING);
-        doCallForBiDir(CALL_BI_DIR);
+        doUnaryCall(CALL_UNARY, this::unaryCall);
+        doUnaryCall(CALL_SERVER_STREAMING, this::serverStreamingCall);
+
+        doStreamingCall(CALL_CLIENT_STREAMING, this::clientStreamingCall);
+        doStreamingCall(CALL_BI_DIR, this::biDirectionalCall);
+
+        doUnaryCall(CALL_DEADLINE, this::unaryCallWithDeadline);
 
         System.out.println("Shutting down the client");
         managedChannel.shutdown();
     }
 
-    private void doUnaryCall(final boolean doCall) {
+    private void doUnaryCall(final boolean doCall, final Consumer<GreetServiceGrpc.GreetServiceBlockingStub> call) {
 
         if (doCall) {
             // Created GreetService client - blocking, synchronous
@@ -41,26 +45,12 @@ public class GreetingClient {
 
             System.out.println("Preparing UNARY call on CLIENT side");
             // Call method on server using custom service <- RPC:
-            unaryCall(synchronousGreetClient);
-
+            call.accept(synchronousGreetClient);
         }
     }
 
-    private void doCallForStreamingServer(final boolean doCall) {
 
-        if (doCall) {
-            // Created GreetService client - blocking, synchronous
-            final GreetServiceGrpc.GreetServiceBlockingStub synchronousGreetClient =
-                    GreetServiceGrpc.newBlockingStub(managedChannel);
-
-            System.out.println("Preparing SERVER STREAMING call on CLIENT side");
-            // Call method on server using custom service <- RPC:
-            serverStreamingCall(synchronousGreetClient);
-
-        }
-    }
-
-    private void doCallForStreamingClient(final boolean doCall) {
+    private void doStreamingCall(final boolean doCall, final Consumer<GreetServiceGrpc.GreetServiceStub> call) {
 
         if (doCall) {
             // Created GreetService client - streaming, asynchronous
@@ -69,22 +59,10 @@ public class GreetingClient {
 
             System.out.println("Preparing STREAMING call on STREAMING CLIENT side");
             // Call method on server using custom service <- RPC:
-            clientStreamingCall(asynchronousGreetClient);
+            call.accept(asynchronousGreetClient);
         }
     }
 
-    private void doCallForBiDir(final boolean doCall) {
-
-        if (doCall) {
-            // Created GreetService client - streaming, asynchronous
-            final GreetServiceGrpc.GreetServiceStub asynchronousGreetClient =
-                    GreetServiceGrpc.newStub(managedChannel);
-
-            System.out.println("Preparing STREAMING call on BIDIR CLIENT side");
-            // Call method on server using custom service <- RPC:
-            biDirectionalCall(asynchronousGreetClient);
-        }
-    }
 
     private void unaryCall(final GreetServiceGrpc.GreetServiceBlockingStub unaryClient) {
 
@@ -100,6 +78,33 @@ public class GreetingClient {
         // RPC to server to get the Response - Unary
         final GreetResponse response = unaryClient.greet(request);
         System.out.println("UNARY response received from SERVER side: " + response.getResult());
+
+    }
+
+    private void unaryCallWithDeadline(final GreetServiceGrpc.GreetServiceBlockingStub unaryClient) {
+
+        // Make the Greeting
+        final Greeting greeting = Greeting.newBuilder()
+                .setFirstName("SomeName for UnaryService")
+                .build();
+
+        // Make the Request containing the Greeting
+        final GreetRequest request = GreetRequest.newBuilder().setGreeting(greeting).build();
+        System.out.println("UNARY request prepared on CLIENT side: " + request);
+
+        try {
+            // RPC to server to get the Response - Unary
+            final GreetResponse response = unaryClient.withDeadline(Deadline.after(100, TimeUnit.MILLISECONDS))
+                    .greetWithDeadline(request);
+
+            System.out.println("UNARY response received from SERVER side: " + response.getResult());
+        } catch (StatusRuntimeException e) {
+            if (Status.DEADLINE_EXCEEDED.getCode().equals(e.getStatus().getCode())) {
+                System.out.println("SERVER did not respond in requested time");
+            } else {
+                e.printStackTrace();
+            }
+        }
 
     }
 

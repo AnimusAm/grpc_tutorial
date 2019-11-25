@@ -1,9 +1,13 @@
 package hr.smilebacksmile.grpc.greeting.server;
 
 import hr.smilebacksmile.greet.*;
+import io.grpc.Context;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
 
@@ -131,5 +135,43 @@ public class GreetServiceImpl extends GreetServiceGrpc.GreetServiceImplBase {
         };
 
         return requestStreamObserver;
+    }
+
+    @Override
+    public void greetWithDeadline(GreetRequest request, StreamObserver<GreetResponse> responseObserver) {
+        System.out.println("UNARY request received on SERVER side: " + request);
+
+        final Context currentGrpc = Context.current();
+
+        // Extract from request
+        String result = "Hello " +
+                Optional.ofNullable( request.getGreeting())
+                        .map(Greeting::getFirstName)
+                        .orElse("No NAME");
+
+        IntStream.range(0, 3).forEach(
+                i -> {
+                    if (!currentGrpc.isCancelled()) {
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                            responseObserver.onError(
+                                    Status.FAILED_PRECONDITION.withDescription("Server was about to sleep but got interrupted").asRuntimeException()
+                            );
+                        }
+                    }
+                }
+        );
+
+        // Form the response
+        final GreetResponse response = GreetResponse.newBuilder().setResult(result).build();
+                            System.out.println("Preparing UNARY response on SERVER side " + response);
+
+        // Send response
+        responseObserver.onNext(response);
+
+        // Finalize RPC call
+        responseObserver.onCompleted();
     }
 }
