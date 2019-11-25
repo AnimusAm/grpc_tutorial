@@ -2,9 +2,9 @@ package hr.smilebacksmile.grpc.calculator.server;
 
 import hr.smilebacksmile.calculator.*;
 import hr.smilebacksmile.fsm.state.impl.MachineState;
-import hr.smilebacksmile.greet.GreetResponse;
 import hr.smilebacksmile.grpc.calculator.util.IntegerStatisticsCalculator;
 import hr.smilebacksmile.grpc.calculator.util.PrimeNumberIncrementalDecomposer;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 import java.util.List;
@@ -19,11 +19,11 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
         Long sum = 0L;
         final List<Integer> inputs = request.getOperands().getOperandsList();
 
+        System.out.println("UNARY REQUEST received from CLIENT side: " + request);
         for (Integer input : inputs) {
-            System.out.println("Input: " + input);
             sum += input;
         }
-        System.out.println("Got result: " + sum);
+        System.out.println("Prepared UNARY response on SERVER side: " + sum);
 
         // Form the response
         final SumResponse response = SumResponse.newBuilder().setResult(sum).build();
@@ -38,6 +38,7 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
     @Override
     public void calculatePrimeFactors(PrimeFactorsRequest request, StreamObserver<PrimeFactorsResponse> responseObserver) {
 
+        System.out.println("UNARY REQUEST received from CLIENT side: " + request);
         // get the number from the request
         final Long number = Optional.ofNullable(request.getNumber())
                 .map(LargeWholeNumber::getNumber)
@@ -50,40 +51,34 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
                 .collect(Collectors.toList());
 
         System.out.println("Server here - I've found following factors: " + factors.toString());
-        try {
-            for (Long factor : factors) {
 
-                System.out.println("Preparing response for factor: " + factor);
+        for (Long factor : factors) {
 
-                // Form the response
-                final PrimeFactorsResponse response = PrimeFactorsResponse
-                        .newBuilder()
-                        .setFactor(
-                                LargeWholeNumber.newBuilder().setNumber(factor).build()
-                        ).build();
+            // Form the response
+            final PrimeFactorsResponse response = PrimeFactorsResponse
+                    .newBuilder()
+                    .setFactor(
+                            LargeWholeNumber.newBuilder().setNumber(factor).build()
+                    ).build();
 
-                // Send response
-                responseObserver.onNext(response);
+            System.out.println("Prepared UNARY response on SERVER side: " + response);
 
-                Thread.sleep(1000L);
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            // Finalize RPC call
-            responseObserver.onCompleted();
+            // Send response
+            responseObserver.onNext(response);
         }
+        // Finalize RPC call
+        responseObserver.onCompleted();
     }
 
     @Override
-    public StreamObserver<IntStatisticsRequest> calculateAverage(StreamObserver<AverageResponse> responseObserver) {
+    public StreamObserver<WholeNumberRequest> calculateAverage(StreamObserver<AverageResponse> responseObserver) {
 
-        final StreamObserver<IntStatisticsRequest> requestStreamObserver = new StreamObserver<IntStatisticsRequest>() {
+        final StreamObserver<WholeNumberRequest> requestStreamObserver = new StreamObserver<WholeNumberRequest>() {
 
             final IntegerStatisticsCalculator calculator = new IntegerStatisticsCalculator();
 
             @Override
-            public void onNext(IntStatisticsRequest value) {
+            public void onNext(WholeNumberRequest value) {
                 // when client sends each of it's request, process it (add into calculator)
                 calculator.progress(value.getNumber());
 
@@ -113,15 +108,15 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
     }
 
     @Override
-    public StreamObserver<IntStatisticsRequest> globalMaximum(StreamObserver<GlobalMaxResponse> responseObserver) {
+    public StreamObserver<WholeNumberRequest> globalMaximum(StreamObserver<GlobalMaxResponse> responseObserver) {
 
-        final StreamObserver<IntStatisticsRequest> requestStreamObserver = new StreamObserver<IntStatisticsRequest>() {
+        final StreamObserver<WholeNumberRequest> requestStreamObserver = new StreamObserver<WholeNumberRequest>() {
 
             final IntegerStatisticsCalculator calculator = new IntegerStatisticsCalculator();
             Integer globalMaximum = calculator.currentMaximum();
 
             @Override
-            public void onNext(IntStatisticsRequest value) {
+            public void onNext(WholeNumberRequest value) {
                 // Server will respond only if global maximum changed
 
                 System.out.println("STREAMING REQUEST received from CLIENT side: " + value);
@@ -164,5 +159,29 @@ public class CalculatorServiceImpl extends CalculatorServiceGrpc.CalculatorServi
         };
 
         return requestStreamObserver;
+    }
+
+    @Override
+    public void squareRoot(WholeNumberRequest request, StreamObserver<SquareRootResponse> responseObserver) {
+
+        System.out.println("UNARY REQUEST received from CLIENT side: " + request);
+        final Integer number = request.getNumber();
+
+        if (number >= 0) {
+
+            final double squareRoot = Math.sqrt(number);
+
+            final SquareRootResponse response = SquareRootResponse.newBuilder().setRoot(squareRoot).build();
+            System.out.println("UNARY RESPONSE prepared on SERVER side: " + response);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } else {
+            System.out.println("ERROR on SERVER side - received negative number");
+            responseObserver.onError(
+                    Status.INVALID_ARGUMENT.withDescription("ERR: Received number is negative")
+                            .augmentDescription("Passed argument: " + number)
+                            .asRuntimeException()
+            );
+        }
     }
 }
