@@ -4,10 +4,6 @@ package hr.smilebacksmile.grpc.calculator.client;
 import hr.smilebacksmile.calculator.*;
 import hr.smilebacksmile.calculator.CalculatorServiceGrpc.CalculatorServiceBlockingStub;
 import hr.smilebacksmile.calculator.CalculatorServiceGrpc.CalculatorServiceStub;
-import hr.smilebacksmile.greet.GreetRequest;
-import hr.smilebacksmile.greet.GreetRequestOrBuilder;
-import hr.smilebacksmile.greet.GreetResponse;
-import hr.smilebacksmile.greet.Greeting;
 import hr.smilebacksmile.grpc.calculator.util.DelayedCall;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -22,7 +18,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.IntStream;
 
 public class CalculatorClient {
@@ -33,7 +28,7 @@ public class CalculatorClient {
         // Create chanel
        managedChannel =
                 ManagedChannelBuilder.forAddress("localhost", 50052)
-                        .usePlaintext() // needed to invoke SSL usage
+                        .usePlaintext() // needed not to invoke SSL usage
                         .build();
 
 
